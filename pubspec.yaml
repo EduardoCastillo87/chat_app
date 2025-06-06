@@ -4,7 +4,7 @@ publish_to: 'none'
 version: 0.1.0
 
 assets:
-  - assets/images/chat.png
+  assets/images/chat.png
 
 environment:
   sdk: ^3.8.0
