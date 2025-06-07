@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:chat_app/screen/chat.dart';
 
 final _firebase = FirebaseAuth.instance;
 
@@ -14,35 +15,65 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   final _form = GlobalKey<FormState>();
-
   var _isLogin = true;
   var _enteredEmail = '';
   var _enteredPassword = '';
+  var _isAuthenticating = false;
 
   void _submit() async {
     final isValid = _form.currentState!.validate();
 
-    if (isValid) {
+    if (!isValid) {
       return;
     }
 
     _form.currentState!.save();
-    if (_isLogin) {
-      // log user in
-    } else {
-      try {
+
+    setState(() {
+      _isAuthenticating = true;
+    });
+
+    try {
+      if (_isLogin) {
+        print('Attempting to sign in with email: $_enteredEmail');
+        final userCredential = await _firebase.signInWithEmailAndPassword(
+          email: _enteredEmail,
+          password: _enteredPassword,
+        );
+        print('Sign in successful: ${userCredential.user?.uid}');
+      } else {
+        print('Attempting to create account with email: $_enteredEmail');
         final userCredentials = await _firebase.createUserWithEmailAndPassword(
           email: _enteredEmail,
           password: _enteredPassword,
         );
-      } on FirebaseAuthException catch (error) {
-        if (error.code == 'email-already-in-use') {
-          //...
-        }
-        ScaffoldMessenger.of(context).clearSnackBars();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message ?? 'Authentication failed.')),
-        );
+        print('Account creation successful: ${userCredentials.user?.uid}');
+      }
+    } on FirebaseAuthException catch (error) {
+      print('Authentication error: ${error.code} - ${error.message}');
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.code == 'user-not-found'
+                ? 'No user found with that email.'
+                : error.code == 'invalid-credential'
+                ? 'Invalid email or password.'
+                : error.code == 'wrong-password'
+                ? 'Wrong password provided.'
+                : error.code == 'email-already-in-use'
+                ? 'This email is already registered. Please login instead.'
+                : error.code == 'weak-password'
+                ? 'The password provided is too weak.'
+                : error.message ?? 'Authentication failed.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAuthenticating = false;
+        });
       }
     }
   }
@@ -112,15 +143,18 @@ class _AuthScreenState extends State<AuthScreen> {
                             },
                           ),
                           const SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed: _submit,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(
-                                context,
-                              ).colorScheme.primaryContainer,
+                          if (_isAuthenticating)
+                            const CircularProgressIndicator()
+                          else
+                            ElevatedButton(
+                              onPressed: _submit,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.primaryContainer,
+                              ),
+                              child: Text(_isLogin ? 'Login' : 'Signup'),
                             ),
-                            child: Text(_isLogin ? 'Login' : 'Signup'),
-                          ),
                           TextButton(
                             onPressed: () {
                               setState(() {
