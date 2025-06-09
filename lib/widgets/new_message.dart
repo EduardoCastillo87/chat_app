@@ -25,8 +25,6 @@ class _NewMessageState extends State<NewMessage> {
       return;
     }
 
-    //send to message
-
     _messageController.clear();
   }
 
